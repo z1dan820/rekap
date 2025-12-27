@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rekap Absensi Kelas 1</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+body {
+  font-family: 'Inter', sans-serif;
+  background:#f1f5f9;
+  padding:20px;
+}
+
+.card {
+  background:#fff;
+  padding:20px;
+  border-radius:12px;
+  max-width:800px;
+  margin:auto;
+}
+
+h2 {
+  text-align:center;
+  font-weight:700;
+  margin-bottom:4px;
+}
+
+.sub {
+  text-align:center;
+  font-size:13px;
+  color:#555;
+  margin-bottom:12px;
+}
+
+.meta {
+  display:flex;
+  justify-content:space-between;
+  font-size:12px;
+  margin-bottom:12px;
+}
+
+select, input, button {
+  width:100%;
+  padding:10px;
+  margin-top:10px;
+}
+
+button {
+  background:#16a34a;
+  border:none;
+  font-weight:600;
+  cursor:pointer;
+  color:white;
+}
+
+table {
+  width:100%;
+  border-collapse:collapse;
+  margin-top:16px;
+}
+
+th {
+  border-bottom:2px solid #000;
+  padding:8px;
+  font-size:13px;
+}
+
+td {
+  border-bottom:1px solid #ccc;
+  padding:8px;
+  font-size:13px;
+}
+
+.footer {
+  margin-top:20px;
+  font-size:11px;
+  text-align:right;
+  color:#555;
+}
+
+@media print {
+  select, input, button { display:none; }
+  body { background:#fff; padding:0; }
+  .card { box-shadow:none; border-radius:0; }
+}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Rekap Absensi Kelas 1</h2>
+
+  <select id="mode">
+    <option value="harian">Harian</option>
+    <option value="mingguan">Mingguan</option>
+    <option value="bulanan">Bulanan</option>
+  </select>
+
+  <input type="date" id="tanggal">
+
+  <button onclick="loadData()">Tampilkan</button>
+
+  <div id="hasil"></div>
+
+  <button onclick="window.print()">Cetak PDF</button>
+</div>
+
+<script>
+const CSV_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vS0piV5hli125YaomVKBbibKYLT3hpr2L5ZXbj2LbMNVdKaLhW6RRBqb-7RmIj02cwmFPkEt0AllLf3/pub?output=csv";
+
+async function loadData(){
+  const res = await fetch(CSV_URL);
+  const text = await res.text();
+  const rows = csvToArray(text);
+
+  const mode = document.getElementById("mode").value;
+  const tgl = document.getElementById("tanggal").value;
+  if(!tgl) return alert("Pilih tanggal");
+
+  const baseDate = new Date(tgl);
+
+  const filtered = rows.filter(r=>{
+    if(r.kelas !== "1") return false;
+    const d = new Date(r.tanggal);
+
+    if(mode==="harian"){
+      return r.tanggal === tgl;
+    }
+    if(mode==="mingguan"){
+      return getWeek(d) === getWeek(baseDate) &&
+             d.getFullYear() === baseDate.getFullYear();
+    }
+    if(mode==="bulanan"){
+      return d.getMonth()===baseDate.getMonth() &&
+             d.getFullYear()===baseDate.getFullYear();
+    }
+  });
+
+  render(filtered, mode, tgl);
+}
+
+function render(data, mode, tgl) {
+  const cetak = new Date().toLocaleString("id-ID");
+  const modeText = mode.toUpperCase();
+  
+  let html = `
+    <h2>Murid-Murid Kesayangan Mualimah Anis</h2>
+    <div class="sub">Rekap Absensi ${modeText}</div>
+
+    <div class="meta">
+      <div><strong>Tanggal Rekap:</strong> ${tgl}</div>
+      <div><strong>Kelas:</strong> 1</div>
+    </div>
+
+    <table>
+      <tr>
+        <th style="width:40px">No</th>
+        <th>Nama Murid</th>
+        <th style="width:100px">Status</th>
+      </tr>
+  `;
+  
+  data.forEach((d, i) => {
+    html += `
+      <tr>
+        <td>${i+1}</td>
+        <td>${d.murid}</td>
+        <td>${d.status}</td>
+      </tr>`;
+  });
+  
+  html += `
+    </table>
+    <div class="footer">
+      Dicetak pada: ${cetak}
+    </div>
+  `;
+  
+  document.getElementById("hasil").innerHTML = html;
+}
+
+function csvToArray(text){
+  const lines = text.trim().split("\n");
+  lines.shift(); // buang header
+  return lines.map(l=>{
+    const c = l.split(",");
+    return {
+      waktu: c[0],
+      sekolah: c[1],
+      guru: c[2],
+      kelas: c[3],
+      murid: c[4],
+      status: c[5],
+      tanggal: c[6]
+    };
+  });
+}
+
+function getWeek(d){
+  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+}
+</script>
+
+</body>
+</html>
